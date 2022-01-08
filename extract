@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+import argparse
+import datetime
+import gpxpy
+import ijson
+import os
+import sys
+
+def next_month(dt: datetime.datetime, tzinfo: datetime.tzinfo) -> datetime.datetime:
+    if dt.month == 12:
+        dt = datetime.datetime(dt.year + 1, 1, 1, tzinfo=tzinfo)
+    else:
+        dt = datetime.datetime(dt.year, dt.month + 1, 1, tzinfo=tzinfo)
+
+    return dt
+
+def write_gpx(points, gpx_path, verbose=False):
+    gpx = gpxpy.gpx.GPX()
+
+    gpx_track = gpxpy.gpx.GPXTrack()
+    gpx.tracks.append(gpx_track)
+
+    gpx_segment = gpxpy.gpx.GPXTrackSegment()
+    gpx_track.segments.append(gpx_segment)
+
+    gpx.tracks[0].segments[0].points = points
+
+    output_dir = os.path.dirname(gpx_path)
+    os.makedirs(output_dir, exist_ok=True)
+
+    if verbose:
+        print(f'Writing {gpx_path}...')
+
+    f = open(gpx_path, 'w')
+    f.write(gpx.to_xml())
+    f.close()
+
+tzinfo = datetime.timezone.utc
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('json_file', type=open)
+parser.add_argument('start_year_month', nargs='?')
+parser.add_argument('end_year_month', nargs='?')
+
+parser.add_argument('-v', '--verbose', action='store_true')
+parser.add_argument('-o', '--output-dir', default='output')
+
+args = parser.parse_args()
+
+if args.start_year_month:
+    start_dt = datetime.datetime.strptime(args.start_year_month, '%Y-%m')
+    start_dt = start_dt.replace(tzinfo=tzinfo)
+else:
+    start_dt = None
+
+if args.end_year_month:
+    end_dt = datetime.datetime.strptime(args.end_year_month, '%Y-%m')
+    end_dt = end_dt.replace(tzinfo=tzinfo)
+else:
+    end_dt = start_dt
+
+if start_dt:
+    start_timestampms = int(start_dt.timestamp()) * 1000
+else:
+    start_timestampms = None
+
+if end_dt:
+    end_timestampms = int(next_month(end_dt, tzinfo).timestamp()) * 1000 - 1
+else:
+    end_timestampms = None
+
+objects = ijson.items(args.json_file, 'locations.item')
+
+last_timestampms = 0
+month_string = None
+output_path = None
+month_start_timestampms = 0
+month_end_timestampms = 0
+points = []
+for o in objects:
+    timestampms = int(o['timestampMs'])
+
+    # we assume ascending timestamps
+    assert(last_timestampms < timestampms)
+    last_timestampms = timestampms
+
+    if start_timestampms and timestampms < start_timestampms:
+        continue
+    if end_timestampms and end_timestampms < timestampms:
+        break
+
+    dt = datetime.datetime.fromtimestamp(timestampms / 1000.0, tzinfo)
+
+    if timestampms < month_start_timestampms or month_end_timestampms < timestampms:
+        if points:
+            write_gpx(points, output_path, args.verbose)
+
+        points = []
+
+        month_string = dt.strftime('%Y-%m')
+        output_path = os.path.join(args.output_dir, f'{month_string}.gpx')
+        month_start_timestampms = int(dt.timestamp()) * 1000
+        month_end_timestampms = int(next_month(dt, tzinfo).timestamp()) * 1000 - 1
+
+        print(month_string)
+
+
+    lat = o['latitudeE7'] / 10**7
+    lng = o['longitudeE7'] / 10**7
+    altitude = o.get('altitude')
+
+    point = gpxpy.gpx.GPXTrackPoint(
+            latitude=lat,
+            longitude=lng,
+            elevation=altitude,
+            time=dt,
+            )
+    points.append(point)
+
+    if args.verbose:
+        if len(points) % 1000 == 0:
+            print(f'{len(points)} points...')
+
+if points:
+    write_gpx(points, output_path, args.verbose)
