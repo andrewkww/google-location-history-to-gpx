@@ -14,13 +14,16 @@ pip install --requirement requirements.txt
 ## Usage
 ```
 # all months
-./extract 'Location History.json'
+./extract 'Takeout/Location History/Location History.json'
+./extract 'Takeout/Location History/Records.json'
 
 # single month
-./extract 'Location History.json' 2021-12
+./extract 'Takeout/Location History/Location History.json' 2021-12
+./extract 'Takeout/Location History/Records.json' 2021-12
 
 # range of months
-./extract 'Location History.json' 2021-01 2021-12
+./extract 'Takeout/Location History/Location History.json' 2021-01 2021-12
+./extract 'Takeout/Location History/Records.json' 2021-01 2021-12
 
 ./extract --help
 ```
