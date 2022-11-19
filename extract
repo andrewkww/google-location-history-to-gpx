@@ -45,6 +45,7 @@ parser.add_argument('end_year_month', nargs='?')
 
 parser.add_argument('-v', '--verbose', action='store_true')
 parser.add_argument('-o', '--output-dir', default='output')
+parser.add_argument('--accuracy-limit', type=int, default=None)
 
 args = parser.parse_args()
 
@@ -71,6 +72,7 @@ else:
     end_timestampms = None
 
 objects = ijson.items(args.json_file, 'locations.item')
+
 
 last_timestampms = 0
 month_string = None
@@ -106,6 +108,8 @@ for o in objects:
         continue
     if end_timestampms and end_timestampms < timestampms:
         break
+    if args.accuracy_limit and o.get("accuracy", 0) > args.accuracy_limit:
+        continue
 
     if timestampms < month_start_timestampms or month_end_timestampms < timestampms:
         if points:
