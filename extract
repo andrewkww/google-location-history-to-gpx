@@ -45,7 +45,13 @@ parser.add_argument('end_year_month', nargs='?')
 
 parser.add_argument('-v', '--verbose', action='store_true')
 parser.add_argument('-o', '--output-dir', default='output')
-parser.add_argument('--accuracy-limit', type=int, default=None)
+parser.add_argument('--accuracy-limit', type=int, default=None,
+    help='When set, location records with high uncertainty are not included in the '
+         'output. The \'accuracy\' attribute is not documented but appears similar '
+         'to Android\'s Location.getAccuracy(). It is generally around 10 when the '
+         'source is GPS and often around 1000-3000 when the source is CELL. The '
+         'default behavior is outputting records independent of the \'accuracy\' '
+         'attribute.')
 
 args = parser.parse_args()
 
