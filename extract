@@ -106,6 +106,10 @@ for o in objects:
     else:
         assert False
 
+    # Data points occasionally don't contain latitudeE7 or longitudeE7.
+    if 'latitudeE7' not in o or 'longitudeE7' not in o:
+        continue
+
     # we assume ascending timestamps
     assert(last_timestampms < timestampms)
     last_timestampms = timestampms
